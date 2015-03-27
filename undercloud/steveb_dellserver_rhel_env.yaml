@@ -1,0 +1,10 @@
+parameters:
+  key_name: heat_key
+  flavor: m1.medium
+  image: rhel-guest-image-7.1-20150224.0.x86_64
+  private_net: private
+  public_net: public
+  provision_net: undercloud
+  rhn_username: rhn-engineering-sbaker
+  rhn_password: yRzSyZHfBe
+  rhn_pool: 8a85f986497c0bf401497c315a0c3bf7

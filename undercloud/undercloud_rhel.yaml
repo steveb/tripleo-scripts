@@ -1,0 +1,94 @@
+heat_template_version: 2014-10-16
+description: >
+  Brings up an undercloud using instack
+parameters:
+  key_name:
+    type: string
+  flavor:
+    type: string
+  image:
+    type: string
+  private_net:
+    type: string
+  public_net:
+    type: string
+  provision_net:
+    type: string
+  rhn_username:
+    type: string
+  rhn_password:
+    type: string
+    hidden: true
+  rhn_pool:
+    type: string
+
+resources:
+  the_sg:
+    type: OS::Neutron::SecurityGroup
+    properties:
+      name: the_sg
+      description: Ping and SSH
+      rules:
+      - protocol: icmp
+      - protocol: tcp
+        port_range_min: 22
+        port_range_max: 22
+
+  create_stack_user:
+    type: "OS::Heat::SoftwareConfig"
+    properties:
+      config: {get_file: fragments/create_stack_user.sh}
+
+  rhn_register:
+    type: "OS::Heat::SoftwareConfig"
+    properties:
+      config:
+        str_replace:
+          params:
+            $rhn_username: {get_param: rhn_username}
+            $rhn_password: {get_param: rhn_password}
+            $rhn_pool: {get_param: rhn_pool}
+          template: {get_file: fragments/rhn_register.sh}
+
+  install_undercloud:
+    type: "OS::Heat::SoftwareConfig"
+    properties:
+      config: {get_file: fragments/install_undercloud.sh}
+
+  boot_config:
+    type: "OS::Heat::MultipartMime"
+    properties:
+      parts:
+      - config: {get_resource: create_stack_user}
+      - config: {get_resource: rhn_register}
+      - config: {get_resource: install_undercloud}
+
+  server:
+    type: OS::Nova::Server
+    properties:
+      image: {get_param: image}
+      flavor: {get_param: flavor}
+      key_name: {get_param: key_name}
+      networks:
+      - network: {get_param: private_net}
+      - network: {get_param: provision_net}
+      security_groups:
+      - {get_resource: the_sg}
+      user_data_format: RAW
+      user_data: {get_resource: boot_config}
+
+  server_floating_ip_assoc:
+    type: OS::Neutron::FloatingIPAssociation
+    properties:
+      floatingip_id: {get_resource: floating_ip}
+      port_id: {get_attr: [server, addresses, {get_param: private_net}, 0, port]}
+
+  floating_ip:
+    type: OS::Neutron::FloatingIP
+    properties:
+      floating_network: {get_param: public_net}
+
+outputs:
+  undercloud_host:
+    value:
+      get_resource: server_floating_ip_assoc
