@@ -4,6 +4,9 @@ parameters:
   bmc_flavor:
     type: string
 
+  baremetal_flavor:
+    type: string
+
   bmc_image:
     type: string
 
@@ -57,18 +60,10 @@ resources:
                     - - {get_param: bmc_prefix}
                       - {get_param: suffix}
 
-    BaremetalFlavor:
-        type: OS::Nova::Flavor
-        properties:
-            disk: 50
-            extra_specs: {"libvirt:pxe-first": 1}
-            ram: 4096
-            vcpus: 2
-
     OpenStackBaremetalServer:
         type: OS::Nova::Server
         properties:
-            flavor: {get_resource: BaremetalFlavor}
+            flavor: {get_param: baremetal_flavor}
             image: {get_param: baremetal_image}
             config_drive: false
             key_name: {get_param: key_name}
